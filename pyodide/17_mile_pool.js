@@ -17,10 +17,10 @@ async function startApplication() {
   await self.pyodide.loadPackage("micropip");
   let zipResponse = await fetch("data.zip");
 
-      let zipBytes = await zipResponse.arrayBuffer();
-      pyodide.FS.writeFile("/data.zip", new Uint8Array(zipBytes));
+  let zipBytes = await zipResponse.arrayBuffer();
+  pyodide.FS.writeFile("/data.zip", new Uint8Array(zipBytes));
 
-      await pyodide.runPythonAsync(`
+  await pyodide.runPythonAsync(`
     import zipfile
     import os
 
