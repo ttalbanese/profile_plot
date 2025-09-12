@@ -1,0 +1,14 @@
+  let zipResponse = await fetch("data.zip");
+
+      let zipBytes = await zipResponse.arrayBuffer();
+      pyodide.FS.writeFile("/data.zip", new Uint8Array(zipBytes));
+
+      await pyodide.runPythonAsync(`
+    import zipfile
+    import os
+
+    with zipfile.ZipFile("/data.zip", "r") as zip_ref:
+        zip_ref.extractall("data")
+
+    print("Extracted files:", os.listdir("data"))
+  `);
