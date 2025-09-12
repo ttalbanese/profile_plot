@@ -1,4 +1,4 @@
-# %%
+
 import duckdb
 import holoviews as hv
 import pandas as pd
@@ -9,26 +9,27 @@ from functools import partial
 pn.extension()
 hv.extension("bokeh")
 
-# %% [markdown]
+
 # ### File Locations
 
-# %%
+
 DATA_DIR = r"data/parquet"
 BANKIES = r"data/embankment_z.csv"
-BANKIE_POINTS = r"data/all_embankment_points.csv"
+#BANKIE_POINTS = r"data/all_embankment_points.csv"
+BANKIE_POINTS = r"data/weir_profiles.csv"
 STORMS = r"data/storms.csv"
 
-# %% [markdown]
+
 # ### Constants
 
-# %%
+
 PROFILE_WIDTH = 900
 PROFILE_HEIGHT = 600
 
-# %% [markdown]
+
 # ### Initialize Data
 
-# %%
+
 CON = duckdb.connect(database=":memory:")
 
 CON.execute(
@@ -42,14 +43,27 @@ ALTER TABLE wse
 RENAME COLUMN "Plan Name" to plan_name
 """
 )
-CON.execute(
-    f"""CREATE TABLE banks AS
-    SELECT InterimNam, Side, M_Start, M_End, z FROM '{BANKIES}';"""
-)
+# CON.execute(
+#     f"""CREATE TABLE banks AS
+#     SELECT InterimNam, Side, M_Start, M_End, z FROM '{BANKIES}';"""
+# )
 
 CON.execute(
     f"""CREATE TABLE bank_points AS
     SELECT InterimNam, Side, Milepost, z FROM '{BANKIE_POINTS}';"""
+)
+
+CON.execute(
+    """CREATE TABLE banks AS
+    SELECT 
+    InterimNam, 
+    ANY_VALUE(Side) Side, 
+    MIN(milepost) M_Start, 
+    MAX(milepost) M_End, 
+    MIN(z) z
+    FROM bank_points
+    GROUP BY InterimNam;
+    """
 )
 CON.execute(
     f"""CREATE TABLE storms AS
@@ -106,10 +120,10 @@ initial_dataset = dataset_names[0]
 initial_time = t[0]
 max_t = t[-1]
 
-# %% [markdown]
+
 # ### Intialize Controls
 
-# %%
+
 PLAN_WIDGET = pn.widgets.MultiChoice(
     name="Plan Name", value=dataset_names[0:1], options=dataset_names, solid=False
 )
@@ -117,10 +131,10 @@ TIMESTEP_WIDGET = pn.widgets.IntSlider(
     name="Timestep", value=0, start=0, end=len(t) - 1
 )
 
-# %% [markdown]
+
 # ### Load Static Data
 
-# %%
+
 storm_data = CON.execute(
     """
         SELECT
@@ -157,10 +171,10 @@ embankment_z = CON.execute(
 FROM bank_points ORDER BY Side, Milepost"""
 ).fetch_df()
 
-# %% [markdown]
+
 # ### Profile Plot
 
-# %%
+
 embankment_z_dots = (
     hv.Scatter(embankment_z, "milepost", ["z", "Side"])
     .groupby("Side")
@@ -298,10 +312,10 @@ profile_panel = (
 )
 # definemp.update()
 
-# %% [markdown]
+
 # ### Milepost Plot
 
-# %%
+
 # CURVE showing WSE at location over Time
 
 
@@ -374,11 +388,11 @@ detail = hv.DynamicMap(milepost_profile, streams=streams)
 
 # hyeto_plot = hv.DynamicMap(hyetograph, streams=dict(storm_name=STORM_WIDGET.param.value))
 
-# %% [markdown]
+
 # ### Storm Plots
 
 
-# %%
+
 def add_dot(storm, timestep):
 
     filtered = storm_data.loc[
@@ -421,10 +435,8 @@ hyeto_list = [
 
 hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="below")
 
-# %% [markdown]
-# ### App
 
-# %%
+
 template = pn.template.BootstrapTemplate(title="17-Mile Pool Hydrosystem")
 template.sidebar.append(PLAN_WIDGET)
 template.sidebar.append(TIMESTEP_WIDGET)
