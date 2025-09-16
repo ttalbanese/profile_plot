@@ -34,13 +34,13 @@ CON = duckdb.connect(database=":memory:")
 
 CON.execute(
     f"""CREATE TABLE wse AS
-    SELECT * FROM '{DATA_DIR +"/*.parquet"}';"""
+    SELECT UPPER(strftime(Timestep, '%d%b%Y %H:%M:%S')) Timestep, * FROM '{DATA_DIR +"/*.parquet"}';"""
 )
 
 CON.execute(
     """
 ALTER TABLE wse
-RENAME COLUMN "Plan Name" to plan_name
+RENAME COLUMN "Profile Name" to plan_name
 """
 )
 # CON.execute(
@@ -84,12 +84,16 @@ WHERE wse.Milepost BETWEEN banks.M_Start AND banks.M_End
 
 # List available parquet files
 # available_files = [f for f in os.listdir(DATA_DIR) if f.endswith('.parquet')]
+
+
 dataset_names = [
+    #name_dict[d[0]]
     d[0]
     for d in CON.execute(
         "SELECT DISTINCT plan_name FROM wse ORDER BY plan_name"
     ).fetchall()
 ]
+
 dataset_times = [
     d[0]
     for d in CON.execute(
@@ -108,7 +112,7 @@ dataset_times = [
     ).fetchall()
 ]
 timesteps = pd.to_datetime(dataset_times, format="%d%b%Y %H:%M:%S").sort_values()
-
+#print(dataset_times)
 t = [t.strftime("%d%b%Y %H:%M:%S").upper() for t in timesteps]
 
 storm_names = [
@@ -127,12 +131,19 @@ max_t = t[-1]
 PLAN_WIDGET = pn.widgets.MultiChoice(
     name="Plan Name", value=dataset_names[0:1], options=dataset_names, solid=False
 )
-TIMESTEP_WIDGET = pn.widgets.IntSlider(
-    name="Timestep", value=0, start=0, end=len(t) - 1
+
+
+
+# TIMESTEP_WIDGET = pn.widgets.IntSlider(
+#     name="Timestep", value=0, start=0, end=len(t) - 1
+# )
+TIMESTEP_WIDGET = pn.widgets.DiscreteSlider(
+    name="Timestep", value=t[0], options=t
 )
 
 
 # ### Load Static Data
+
 
 
 storm_data = CON.execute(
@@ -166,6 +177,17 @@ for ix, storm in storm_data.groupby("Storm"):
     fixed_data.append(storm)
 storm_data = pd.concat(fixed_data)
 
+storm_data["Storm"] = storm_data['Storm'].map({
+    '100': '100-Year',
+      '10_sqmi_0.5PMF': '10 Sq Mi Half PMF',
+       '10_sqmi_PMF': '10 Sq Mi PMF',
+       '150': '150% of 100-Year',
+       '50': '50-Year',
+       '500': '500-Year',
+       '50_sqmi_0.5PMF': '50 Sq Mi Half PMF',
+ '50_sqmi_PMF':'50 Sq Mi PMF',
+})
+
 embankment_z = CON.execute(
     """SELECT *
 FROM bank_points ORDER BY Side, Milepost"""
@@ -189,7 +211,7 @@ def load_profile(timestep, plan_name, tap_x=None, **kwargs):
 
     df = CON.execute(
         "SELECT * FROM wse WHERE Timestep = $t AND plan_name IN $p",
-        {"t": t[timestep], "p": plan_name},
+        {"t": timestep, "p": plan_name},
     ).fetch_df()  # .groupby("plan_name")
 
     wse = (
@@ -218,7 +240,7 @@ def load_north_rects(timestep, plan_name, tap_x=None, **kwargs):
             FROM banks
             WHERE Side = 'North'
             """,
-        {"plan_name": plan_name, "timestep": t[timestep]},
+        {"plan_name": plan_name, "timestep": timestep},
     ).fetchall()
 
     north = (
@@ -247,7 +269,7 @@ def load_south_rects(timestep, plan_name, tap_x=None, **kwargs):
             FROM banks
             WHERE Side = 'South'
             """,
-        {"plan_name": plan_name, "timestep": t[timestep]},
+        {"plan_name": plan_name, "timestep": timestep},
     ).fetchall()
 
     south = (
@@ -334,7 +356,7 @@ def milepost_profile(tap_x, timestep, plan_name):
     # closest_milepost = 250.00
     wse_points = CON.execute(
         "SELECT Timestep, WSE, plan_name FROM wse WHERE Timestep = $t AND plan_name IN $p AND Milepost = $m",
-        {"t": t[timestep], "p": plan_name, "m": closest_milepost},
+        {"t": timestep, "p": plan_name, "m": closest_milepost},
     ).fetch_df()
 
     wse_curve = CON.execute(
@@ -360,7 +382,7 @@ def milepost_profile(tap_x, timestep, plan_name):
     return (
         (curve * scatter)
         .redim(WSE="wse")
-        .relabel(f"Milepost: {closest_milepost:.2f}\nTimestep: {t[timestep]}")
+        .relabel(f"Milepost: {closest_milepost:.2f}\nTimestep: {timestep}")
         .opts(
             opts.Scatter(
                 marker="s",
@@ -396,7 +418,7 @@ detail = hv.DynamicMap(milepost_profile, streams=streams)
 def add_dot(storm, timestep):
 
     filtered = storm_data.loc[
-        (storm_data["Storm"] == storm) & (storm_data["Timestep"] == t[timestep]), :
+        (storm_data["Storm"] == storm) & (storm_data["Timestep"] == timestep), :
     ]
 
     return hv.Scatter(filtered, "Timestep", "Accumulation").opts(
@@ -433,7 +455,7 @@ hyeto_list = [
     for ix, storm in storm_data.sort_values("Timestep").groupby("Storm")
 ]
 
-hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="below")
+hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="right")
 
 
 
