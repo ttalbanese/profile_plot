@@ -459,7 +459,7 @@ hyeto_list = [
     for ix, storm in storm_data.sort_values("Timestep").groupby("Storm")
 ]
 
-hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="right", dynamic=True)
+hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="right")
 
 
 
