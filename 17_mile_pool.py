@@ -34,7 +34,11 @@ CON = duckdb.connect(database=":memory:")
 
 CON.execute(
     f"""CREATE TABLE wse AS
-    SELECT UPPER(strftime(Timestep, '%d%b%Y %H:%M:%S')) Timestep, * FROM '{DATA_DIR +"/*.parquet"}';"""
+    SELECT 
+    UPPER(strftime(Timestep, '%d%b%Y %H:%M:%S')) Timestep,
+    replace("Profile Name", 'Half of', '50% of') "Profile Name",
+         * 
+         FROM '{DATA_DIR +"/*.parquet"}';"""
 )
 
 CON.execute(
@@ -138,7 +142,7 @@ PLAN_WIDGET = pn.widgets.MultiChoice(
 #     name="Timestep", value=0, start=0, end=len(t) - 1
 # )
 TIMESTEP_WIDGET = pn.widgets.DiscreteSlider(
-    name="Timestep", value=t[0], options=t
+    name="Timestep", value=t[0], options=t, align='start', width=450
 )
 
 
@@ -455,15 +459,15 @@ hyeto_list = [
     for ix, storm in storm_data.sort_values("Timestep").groupby("Storm")
 ]
 
-hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="right")
+hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="right", dynamic=True)
 
 
 
 template = pn.template.BootstrapTemplate(title="17-Mile Pool Hydrosystem")
 template.sidebar.append(PLAN_WIDGET)
-template.sidebar.append(TIMESTEP_WIDGET)
+#template.sidebar.append(TIMESTEP_WIDGET)
 
-template.main.append(pn.Row(profile_panel, pn.Column(detail, hyeto_tabs)))
+template.main.append(pn.Row(profile_panel, pn.Column(detail, hyeto_tabs, pn.Row(pn.Spacer(width=40), TIMESTEP_WIDGET))))
 template.servable()
 
 
