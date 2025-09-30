@@ -1,4 +1,3 @@
-
 import duckdb
 import holoviews as hv
 import pandas as pd
@@ -15,7 +14,7 @@ hv.extension("bokeh")
 
 DATA_DIR = r"data/parquet"
 BANKIES = r"data/embankment_z.csv"
-#BANKIE_POINTS = r"data/all_embankment_points.csv"
+# BANKIE_POINTS = r"data/all_embankment_points.csv"
 BANKIE_POINTS = r"data/weir_profiles.csv"
 STORMS = r"data/storms.csv"
 
@@ -91,7 +90,7 @@ WHERE wse.Milepost BETWEEN banks.M_Start AND banks.M_End
 
 
 dataset_names = [
-    #name_dict[d[0]]
+    # name_dict[d[0]]
     d[0]
     for d in CON.execute(
         "SELECT DISTINCT plan_name FROM wse ORDER BY plan_name"
@@ -116,7 +115,7 @@ dataset_times = [
     ).fetchall()
 ]
 timesteps = pd.to_datetime(dataset_times, format="%d%b%Y %H:%M:%S").sort_values()
-#print(dataset_times)
+# print(dataset_times)
 t = [t.strftime("%d%b%Y %H:%M:%S").upper() for t in timesteps]
 
 storm_names = [
@@ -137,17 +136,15 @@ PLAN_WIDGET = pn.widgets.MultiChoice(
 )
 
 
-
 # TIMESTEP_WIDGET = pn.widgets.IntSlider(
 #     name="Timestep", value=0, start=0, end=len(t) - 1
 # )
 TIMESTEP_WIDGET = pn.widgets.DiscreteSlider(
-    name="Timestep", value=t[0], options=t, align='start', width=450
+    name="Timestep", value=t[0], options=t, align="start", width=450
 )
 
 
 # ### Load Static Data
-
 
 
 storm_data = CON.execute(
@@ -181,16 +178,18 @@ for ix, storm in storm_data.groupby("Storm"):
     fixed_data.append(storm)
 storm_data = pd.concat(fixed_data)
 
-storm_data["Storm"] = storm_data['Storm'].map({
-    '100': '100-Year',
-      '10_sqmi_0.5PMF': '10 Sq Mi Half PMF',
-       '10_sqmi_PMF': '10 Sq Mi PMF',
-       '150': '150% of 100-Year',
-       '50': '50-Year',
-       '500': '500-Year',
-       '50_sqmi_0.5PMF': '50 Sq Mi Half PMF',
- '50_sqmi_PMF':'50 Sq Mi PMF',
-})
+storm_data["Storm"] = storm_data["Storm"].map(
+    {
+        "100": "100-Year",
+        "10_sqmi_0.5PMF": "10 Sq Mi Half PMF",
+        "10_sqmi_PMF": "10 Sq Mi PMF",
+        "150": "150% of 100-Year",
+        "50": "50-Year",
+        "500": "500-Year",
+        "50_sqmi_0.5PMF": "50 Sq Mi Half PMF",
+        "50_sqmi_PMF": "50 Sq Mi PMF",
+    }
+)
 
 embankment_z = CON.execute(
     """SELECT *
@@ -418,7 +417,6 @@ detail = hv.DynamicMap(milepost_profile, streams=streams)
 # ### Storm Plots
 
 
-
 def add_dot(storm, timestep):
 
     filtered = storm_data.loc[
@@ -462,12 +460,16 @@ hyeto_list = [
 hyeto_tabs = pn.Tabs(*hyeto_list, tabs_location="right")
 
 
-
 template = pn.template.BootstrapTemplate(title="17-Mile Pool Hydrosystem")
 template.sidebar.append(PLAN_WIDGET)
-#template.sidebar.append(TIMESTEP_WIDGET)
+# template.sidebar.append(TIMESTEP_WIDGET)
 
-template.main.append(pn.Row(profile_panel, pn.Column(detail, hyeto_tabs, pn.Row(pn.Spacer(width=40), TIMESTEP_WIDGET))))
+template.main.append(
+    pn.Row(
+        profile_panel,
+        pn.Column(detail, hyeto_tabs, pn.Row(pn.Spacer(width=40), TIMESTEP_WIDGET)),
+    )
+)
 template.servable()
 
 
